@@ -8,10 +8,10 @@ remove-heavy sequences. The fix shipped in 1.4.3
 (https://developer.android.com/jetpack/androidx/releases/collection#1.4.3).
 React Native pins 1.4.0, and a plain app resolves 1.4.0 or 1.4.2.
 
-Effect: a view RN created and never deleted can no longer be found. RN then
-drops every later mount instruction for it, with a soft exception in debug and
-silently in release. Updates stop, removals and deletions are skipped, and
-child inserts into it are skipped.
+Effect: a view RN created and never deleted can no longer be found in the
+registry. RN then logs `Unable to find viewState for tag N` and skips the
+instruction that needed it: prop and layout updates for that view, `deleteView`
+of it, and child inserts or removals that look up the view as the parent.
 
 ## App reproducer
 
@@ -19,9 +19,11 @@ child inserts into it are skipped.
 2. `adb logcat | grep "Unable to find viewState"`
 3. Press **Run 40 rounds**. Each round unmounts 60 random views and mounts 70.
 
-Observed on a Pixel 9a, Android 16, with this app as published: 69 soft
-exceptions on 39 distinct tags in two runs (34 `updateLayout`, 20 `updateProps`,
-15 `deleteView`). The app resolves `androidx.collection:collection 1.4.2`.
+Observed on a Pixel 9a, Android 16, with this app: 69 soft exceptions on 38
+distinct tags in two runs of 40 rounds (34 `updateLayout`, 20 `updateProps`,
+15 `deleteView`). Check the resolved version with
+`cd android && ./gradlew :app:dependencies --configuration debugRuntimeClasspath | grep androidx.collection`;
+this app resolves 1.4.2 through `androidx.core` and `androidx.window`.
 
 ## Pure JVM reproducer, 37 operations
 
@@ -32,6 +34,8 @@ exceptions on 39 distinct tags in two runs (34 `updateLayout`, 20 `updateProps`,
 `Minimal.java` puts 28 even keys, removes 6, puts 3 more. With 1.4.2 two keys
 become unreachable while `size` still counts them. `Fuzz.java` shows about
 half of random put and remove sequences fail on 1.4.2 and none on 1.4.4.
+The script downloads the two `collection-jvm` jars from Google's Maven
+repository and the Kotlin stdlib from Maven Central.
 
 ## Confirming the fix
 
@@ -43,4 +47,6 @@ dependencies {
 }
 ```
 
-With that pin the app reproducer logs nothing over 120 rounds.
+With that pin, the same screen inside a larger app logged nothing over 120
+rounds on the same device. Tested against 1.4.2 and 1.4.4 only; 1.4.0 and 1.4.1
+were not tested.
