@@ -19,9 +19,11 @@ of it, and child inserts or removals that look up the view as the parent.
 2. `adb logcat | grep "Unable to find viewState"`
 3. Press **Run 40 rounds**. Each round unmounts 60 random views and mounts 70.
 
-Observed on a Pixel 9a, Android 16, with this app: 69 soft exceptions on 38
-distinct tags in two runs of 40 rounds (34 `updateLayout`, 20 `updateProps`,
-15 `deleteView`). Check the resolved version with
+Observed on a Pixel 9a, Android 16, with this app (seed 42): 91 soft exceptions
+on 45 distinct tags in two runs of 40 rounds (68 `updateLayout`, 6 `updateProps`,
+17 `deleteView`). A visible symptom from the same run: box 2171 stayed on screen
+on top of box 2451 after RN could no longer find it in the registry, see
+`docs/zombie-view-2171-over-2451.png`. Check the resolved version with
 `cd android && ./gradlew :app:dependencies --configuration debugRuntimeClasspath | grep androidx.collection`;
 this app resolves 1.4.2 through `androidx.core` and `androidx.window`.
 
