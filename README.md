@@ -1,79 +1,45 @@
-# rn-android-view-registry-corruption
+# RN 0.87 Android: view registry loses entries with androidx.collection 1.4.0 to 1.4.2
 
-![Build](https://github.com/pawicao/rn-android-view-registry-corruption/workflows/Pre%20Merge%20Checks/badge.svg)
+`SurfaceMountingManager` stores its tag to `ViewState` registry in
+`androidx.collection.MutableIntObjectMap` since React Native 0.87.0
+(facebook/react-native#56646, flag removed in #57228). `androidx.collection`
+1.4.0 to 1.4.2 corrupt `ScatterMap` and its primitive variants after
+remove-heavy sequences. The fix shipped in 1.4.3
+(https://developer.android.com/jetpack/androidx/releases/collection#1.4.3).
+React Native pins 1.4.0, and a plain app resolves 1.4.0 or 1.4.2.
 
-This is your new React Native Reproducer project.
+Effect: a view RN created and never deleted can no longer be found. RN then
+drops every later mount instruction for it, with a soft exception in debug and
+silently in release. Updates stop, removals and deletions are skipped, and
+child inserts into it are skipped.
 
-# Reproducer TODO list
+## App reproducer
 
-- [x] 1. Create a new reproducer project.
-- [ ] 2. Git clone your repository locally.
-- [ ] 3. Edit the project to reproduce the failure you're seeing.
-- [ ] 4. Push your changes, so that Github Actions can run the CI.
-- [ ] 5. Make sure the repository is public and share the link with the issue you reported.
+1. `cd ReproducerApp && yarn && yarn android`
+2. `adb logcat | grep "Unable to find viewState"`
+3. Press **Run 40 rounds**. Each round unmounts 60 random views and mounts 70.
 
-# How to use this Reproducer
+Observed on a Pixel 9a, Android 16: 60 soft exceptions on 27 distinct tags in
+one run (`updateLayout`, `updateProps`, `deleteView`).
 
-This project has been created with `npx @react-native-community/cli init` and is a vanilla React Native app.
+## Pure JVM reproducer, 37 operations
 
-> [!IMPORTANT]  
-> Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/set-up-your-environment) so that you have a working environment locally.
-
-## Step 1: Start the Metro Server
-
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
-
-To start Metro, run the following command from the _root_ of your React Native project:
-
-```bash
-# using npm
-npm start
-
-# OR using Yarn
-yarn start
+```sh
+./jvm-repro/run.sh
 ```
 
-## Step 2: Start your Application
+`Minimal.java` puts 28 even keys, removes 6, puts 3 more. With 1.4.2 two keys
+become unreachable while `size` still counts them. `Fuzz.java` shows about
+half of random put and remove sequences fail on 1.4.2 and none on 1.4.4.
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+## Confirming the fix
 
-### For Android
+Add to `ReproducerApp/android/app/build.gradle`:
 
-```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```groovy
+dependencies {
+    implementation("androidx.collection:collection:1.4.4")
+}
 ```
 
-### For iOS
-
-First, make sure you install dependencies with:
-
-```bash
-cd ios && bundle install && bundle exec pod install
-```
-
-Then you can run the iOS app with:
-
-```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
-
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
-
-## Step 3: Modifying your App
-
-Now that you have successfully run the app, let's modify it.
-
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
-
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+With that pin the app reproducer logs nothing over 120 rounds.
