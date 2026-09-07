@@ -100,7 +100,7 @@ function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#111', padding: 12, gap: 8 },
+  screen: { flex: 1, backgroundColor: '#111', padding: 12, paddingTop: 48, gap: 8 },
   text: { color: '#ddd', fontSize: 12 },
   row: { flexDirection: 'row', gap: 8 },
   button: { backgroundColor: '#2b6cff', padding: 10, borderRadius: 8 },
