@@ -19,8 +19,9 @@ child inserts into it are skipped.
 2. `adb logcat | grep "Unable to find viewState"`
 3. Press **Run 40 rounds**. Each round unmounts 60 random views and mounts 70.
 
-Observed on a Pixel 9a, Android 16: 60 soft exceptions on 27 distinct tags in
-one run (`updateLayout`, `updateProps`, `deleteView`).
+Observed on a Pixel 9a, Android 16, with this app as published: 69 soft
+exceptions on 39 distinct tags in two runs (34 `updateLayout`, 20 `updateProps`,
+15 `deleteView`). The app resolves `androidx.collection:collection 1.4.2`.
 
 ## Pure JVM reproducer, 37 operations
 
